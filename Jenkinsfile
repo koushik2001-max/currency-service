@@ -1,3 +1,18 @@
+def secrets = [
+    [
+        path: 'secrets/creds/my-secret-text',
+        engineVersion: 2,
+        secretValues: [
+            [envVar: 'SONARQUBE_TOKEN', vaultKey: 'currency']
+        ]
+    ]
+]
+
+def configuration = [
+    vaultUrl: 'http://65.0.30.51:8200',
+    vaultCredentialId: 'vault-geetha-token',
+    engineVersion: 2
+]
 pipeline {
   agent any
   options {
@@ -8,12 +23,19 @@ pipeline {
     DOCKERHUB_CREDENTIALS = credentials('dockerhub')
   }
   stages {
+        stage('Vault') {
+            steps {
+                script {
+                    withVault([configuration: configuration, vaultSecrets: currency]) {
+                        // Extract the SonarQube Token
+//                        SONARQUBE_TOKEN = env.SONARQUBE_TOKEN
+                        sh "echo ${SONARQUBE_TOKEN}"
+                    }
+                }
+            }
 
-
-
-    
-    
-    
+        }
+  }
           stage('Docker Bench Security') {
       steps {
         sh 'chmod +x docker-bench-security.sh'
@@ -25,9 +47,8 @@ pipeline {
      stage('SonarQube Analysis') {
           agent any
       steps {
-       
-
-       sh '/var/opt/sonar-scanner-4.7.0.2747-linux/bin/sonar-scanner -Dsonar.projectKey=currencyservice-- -Dsonar.sources=. -Dsonar.host.url=http://172.31.7.193:9000 -Dsonar.token=sqp_d9688e8cf8d69edb28c6e9a8ce3d30fdf0cc5cc2'
+            withVault([configuration: configuration, vaultSecrets: secrets]) {
+       sh '/var/opt/sonar-scanner-4.7.0.2747-linux/bin/sonar-scanner -Dsonar.projectKey=currencyservice-- -Dsonar.sources=. -Dsonar.host.url=http://172.31.7.193:9000 -Dsonar.token=$SONARQUBE_TOKEN'
 
         
       }
